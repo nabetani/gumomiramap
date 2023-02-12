@@ -50,19 +50,16 @@ cv::Mat gumomira_image(gm_t const &gm) {
   auto xhi = i_xhi->x;
   auto ylo = i_ylo->y;
   auto yhi = i_yhi->y;
-  auto dx = (xhi - xlo) / 10;
-  auto dy = (yhi - ylo) / 10;
-  xlo -= dy;
-  xhi += dx;
-  ylo -= dy;
-  yhi += dy;
+  auto cx = (xhi + xlo) / 2;
+  auto cy = (yhi + ylo) / 2;
+  auto xyw = std::max(xhi - xlo, yhi - ylo) * 1.1 / 2;
   std::vector<uint64_t> im(gm.w * gm.w);
-  auto z = gm.w / std::max(xhi - xlo, yhi - ylo);
+  auto z = gm.w / 2 / xyw;
   std::cout << "z=" << z << std::endl;
 
   for (auto v : pts) {
-    auto x = (v.x - xlo) * z;
-    auto y = (v.y - ylo) * z;
+    auto x = (v.x - (cx - xyw)) * z;
+    auto y = (v.y - (cy - xyw)) * z;
     auto ix = std::floor(x);
     auto iy = std::floor(y);
     auto dx = x - ix;
