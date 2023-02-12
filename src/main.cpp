@@ -4,28 +4,81 @@
 struct gm_t {
   int w;
   double z;
+  cv::Point2f p0 = {5, 0};
+  int pre = 100;
+  int rep = 1000000;
+
+  float a = 0.008;
+  float s = 0.05;
+  float mu = -0.496;
+
+  cv::Point2f progress(cv::Point2f const &p) const {
+    auto x = p.x;
+    auto y = p.y;
+    auto xx = y + a * y * (1 - s * y * y) + mu * x +
+              2 * (1 - mu) * x * x / (1 + x * x);
+    return {xx, -x + mu * xx + 2 * (1 - mu) * xx * xx / (1 + xx * xx)};
+  }
 };
 
-std::vector<float> gumomira_value(gm_t const &gm) {
-  std::vector<float> m(gm.w * gm.w);
-  for (std::size_t i = 0; i < m.size(); ++i) {
-    m[i] = std::sin(i * i * 0.01);
+std::vector<cv::Point2f> gumomira_value(gm_t const &gm) {
+  std::vector<cv::Point2f> m;
+  m.reserve(gm.rep);
+  auto p = gm.p0;
+  for (int i = 0; i < gm.pre; ++i) {
+    p = gm.progress(p);
+  }
+  for (int i = 0; i < gm.rep; ++i) {
+    p = gm.progress(p);
+    m.push_back(p);
   }
   return m;
 }
 
 cv::Mat gumomira_image(gm_t const &gm) {
   cv::Mat image = cv::Mat::zeros(gm.w, gm.w, CV_8UC1);
-  std::vector<float> m = gumomira_value(gm);
-  auto [ilo, ihi] = std::minmax_element(cbegin(m), cend(m));
-  auto lo = *ilo;
-  auto hi = *ihi;
-  auto map = [lo, hi](float v) -> std::uint8_t {
-    return static_cast<std::uint8_t>((v - lo) * (255 / (hi - lo)));
-  };
+  auto pts = gumomira_value(gm);
+  auto [i_xlo, i_xhi] = std::minmax_element(
+      cbegin(pts), cend(pts),
+      [](cv::Point2f const &a, cv::Point2f const &b) -> bool {
+        return a.x < b.x;
+      });
+  auto [i_ylo, i_yhi] = std::minmax_element(
+      cbegin(pts), cend(pts),
+      [](cv::Point2f const &a, cv::Point2f const &b) -> bool {
+        return a.y < b.y;
+      });
+  auto xlo = i_xlo->x;
+  auto xhi = i_xhi->x;
+  auto ylo = i_ylo->y;
+  auto yhi = i_yhi->y;
+  auto dx = (xhi - xlo) / 10;
+  auto dy = (yhi - ylo) / 10;
+  xlo -= dy;
+  xhi += dx;
+  ylo -= dy;
+  yhi += dy;
+  std::vector<int> im(gm.w * gm.w);
+
+  auto z = gm.w / std::max(xhi - xlo, yhi - ylo);
+  std::cout << "z=" << z << std::endl;
+
+  for (auto v : pts) {
+    auto x = std::lrint((v.x - xlo) * z);
+    auto y = std::lrint((v.y - ylo) * z);
+    ++im[y * gm.w + x];
+  }
+  auto imcopy = im;
+  std::sort(begin(imcopy), end(imcopy));
+  auto max = imcopy[imcopy.size() * 9 / 10];
+
+  auto pz = 255.0 / max;
+  std::cout << "pz=" << pz << "  max=" << max << std::endl;
+
   for (size_t y = 0; y < gm.w; ++y) {
     for (size_t x = 0; x < gm.w; ++x) {
-      image.at<std::uint8_t>(x, y) = map(m[y * gm.w + x]);
+      image.at<std::uint8_t>(x, y) =
+          static_cast<std::uint8_t>(im[y * gm.w + x] * pz);
     }
   }
 
@@ -33,7 +86,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
 }
 
 int main() {
-  cv::Mat image = gumomira_image({.w = 500, .z = 0.1});
+  cv::Mat image = gumomira_image({.w = 500, .z = 100});
   cv::imwrite("output.png", image);
   return 0;
 }
