@@ -28,6 +28,17 @@ struct gm_t {
   }
 };
 
+void show(gm_t const &gm) {
+  std::cout << "w=" << gm.w << " "     //
+            << "p0=" << gm.p0 << " "   //
+            << "pre=" << gm.pre << " " //
+            << "rep=" << gm.rep << " " //
+            << "a=" << gm.a << " "     //
+            << "s=" << gm.s << " "     //
+            << "mu=" << gm.mu << " "   //
+            << "pow=" << gm.pow << std::endl;
+}
+
 std::vector<point_t> gumomira_value(gm_t const &gm) {
   std::vector<point_t> m;
   m.reserve(gm.rep);
@@ -43,6 +54,7 @@ std::vector<point_t> gumomira_value(gm_t const &gm) {
 }
 
 cv::Mat gumomira_image(gm_t const &gm) {
+  show(gm);
   cv::Mat image = cv::Mat::zeros(gm.w, gm.w, CV_8UC1);
   auto pts = gumomira_value(gm);
   auto [i_xlo, i_xhi] = std::minmax_element(
@@ -60,7 +72,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
   auto xyw = std::max(xhi - xlo, yhi - ylo) * 1.1 / 2;
   std::vector<uint64_t> im(gm.w * gm.w);
   auto z = gm.w / 2 / xyw;
-  std::cout << "z=" << z << std::endl;
+  //   std::cout << "z=" << z << std::endl;
 
   for (auto v : pts) {
     auto x = (v.x - (cx - xyw)) * z;
@@ -76,7 +88,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
     im[(iy + 1) * gm.w + (ix + 1)] += pw * (1 - dx) * (1 - dy);
   }
   double max = *std::max_element(cbegin(im), cend(im));
-  std::cout << "max=" << max << std::endl;
+  //   std::cout << "max=" << max << std::endl;
 
   for (size_t y = 0; y < gm.w; ++y) {
     for (size_t x = 0; x < gm.w; ++x) {
@@ -98,9 +110,36 @@ gm_t fromJson(char const *fn) {
     std::cout << errs << std::endl;
     throw std::runtime_error("");
   }
-  std::cout << root << std::endl;
-  return {};
+  auto i = [&root](char const *name, int fallback) -> int {
+    if (root[name].empty()) {
+      return fallback;
+    }
+    return root[name].as<int>();
+  };
+  auto n = [&root](char const *name, num_t fallback) -> num_t {
+    if (root[name].empty()) {
+      return fallback;
+    }
+    return root[name].as<num_t>();
+  };
+  auto d = [&root](char const *name, double fallback) -> double {
+    if (root[name].empty()) {
+      return fallback;
+    }
+    return root[name].as<double>();
+  };
+  return {
+      .w = i("w", 2000),                       //
+      .p0 = point_t(n("p0x", 5), n("p0y", 0)), //
+      .pre = i("pre", 1000),
+      .rep = i("rep", 1000 * 1000),
+      .a = n("alpha", 0.08),
+      .s = n("sigma", 0.05),
+      .mu = n("mu", -0.496),
+      .pow = d("pow", 0.2),
+  };
 }
+
 int main(int argc, char const *argv[]) {
   cv::Mat image = gumomira_image(argc == 2 ? fromJson(argv[1]) : gm_t{});
   cv::imwrite("output.png", image);
