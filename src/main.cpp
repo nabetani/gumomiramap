@@ -6,7 +6,7 @@ struct gm_t {
   double z;
   cv::Point2f p0 = {5, 0};
   int pre = 100;
-  int rep = 1000000;
+  int rep = 100000000;
 
   float a = 0.008;
   float s = 0.05;
@@ -70,15 +70,14 @@ cv::Mat gumomira_image(gm_t const &gm) {
   }
   auto imcopy = im;
   std::sort(begin(imcopy), end(imcopy));
-  auto max = imcopy[imcopy.size() * 9 / 10];
-
-  auto pz = 255.0 / max;
-  std::cout << "pz=" << pz << "  max=" << max << std::endl;
+  double max = imcopy[imcopy.size() - 1];
+  std::cout << "max=" << max << std::endl;
 
   for (size_t y = 0; y < gm.w; ++y) {
     for (size_t x = 0; x < gm.w; ++x) {
-      image.at<std::uint8_t>(x, y) =
-          static_cast<std::uint8_t>(im[y * gm.w + x] * pz);
+      auto v0 = im[y * gm.w + x] / max;
+      auto v = std::pow(v0, 0.1);
+      image.at<std::uint8_t>(x, y) = cv::saturate_cast<std::uint8_t>(v * 255);
     }
   }
 
@@ -86,7 +85,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
 }
 
 int main() {
-  cv::Mat image = gumomira_image({.w = 500, .z = 100});
+  cv::Mat image = gumomira_image({.w = 1000, .z = 100});
   cv::imwrite("output.png", image);
   return 0;
 }
