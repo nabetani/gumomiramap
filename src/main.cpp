@@ -5,14 +5,15 @@ using point_t = cv::Point2d;
 using num_t = double;
 
 struct gm_t {
-  int w;
+  int w = 2500;
   point_t p0 = {5, 0};
-  int pre = 100;
+  int pre = 1000;
   int rep = 100000000;
 
   num_t a = 0.008;
   num_t s = 0.05;
   num_t mu = -0.496;
+  double pow = 0.2;
 
   point_t progress(point_t const &p) const {
     auto x = p.x;
@@ -64,21 +65,19 @@ cv::Mat gumomira_image(gm_t const &gm) {
     auto iy = std::floor(y);
     auto dx = x - ix;
     auto dy = y - iy;
-    constexpr uint64_t pw = 256;
+    const uint64_t pw = (1ull << 60) / gm.rep;
     im[iy * gm.w + ix] += pw * (1 - dx) * (1 - dy);
     im[iy * gm.w + (ix + 1)] += pw * dx * (1 - dy);
     im[(iy + 1) * gm.w + ix] += pw * (1 - dx) * dy;
     im[(iy + 1) * gm.w + (ix + 1)] += pw * (1 - dx) * (1 - dy);
   }
-  auto imcopy = im;
-  std::sort(begin(imcopy), end(imcopy));
-  double max = imcopy[imcopy.size() - 1];
+  double max = *std::max_element(cbegin(im), cend(im));
   std::cout << "max=" << max << std::endl;
 
   for (size_t y = 0; y < gm.w; ++y) {
     for (size_t x = 0; x < gm.w; ++x) {
       auto v0 = im[y * gm.w + x] / max;
-      auto v = std::pow(v0, 0.2);
+      auto v = std::pow(v0, gm.pow);
       image.at<std::uint8_t>(x, y) = cv::saturate_cast<std::uint8_t>(v * 255);
     }
   }
@@ -87,7 +86,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
 }
 
 int main() {
-  cv::Mat image = gumomira_image({.w = 3000});
+  cv::Mat image = gumomira_image({});
   cv::imwrite("output.png", image);
   return 0;
 }
