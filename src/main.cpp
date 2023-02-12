@@ -1,4 +1,8 @@
+#include "json/json.h"
+#include <fstream>
+#include <iostream>
 #include <opencv2/opencv.hpp>
+#include <stdexcept>
 #include <vector>
 
 using point_t = cv::Point2d;
@@ -85,8 +89,20 @@ cv::Mat gumomira_image(gm_t const &gm) {
   return image;
 }
 
-int main() {
-  cv::Mat image = gumomira_image({});
+gm_t fromJson(char const *fn) {
+  Json::Value root;
+  std::ifstream ifs{fn};
+  Json::CharReaderBuilder builder;
+  JSONCPP_STRING errs;
+  if (!parseFromStream(builder, ifs, &root, &errs)) {
+    std::cout << errs << std::endl;
+    throw std::runtime_error("");
+  }
+  std::cout << root << std::endl;
+  return {};
+}
+int main(int argc, char const *argv[]) {
+  cv::Mat image = gumomira_image(argc == 2 ? fromJson(argv[1]) : gm_t{});
   cv::imwrite("output.png", image);
   return 0;
 }
