@@ -56,15 +56,22 @@ cv::Mat gumomira_image(gm_t const &gm) {
   xhi += dx;
   ylo -= dy;
   yhi += dy;
-  std::vector<int> im(gm.w * gm.w);
-
+  std::vector<uint64_t> im(gm.w * gm.w);
   auto z = gm.w / std::max(xhi - xlo, yhi - ylo);
   std::cout << "z=" << z << std::endl;
 
   for (auto v : pts) {
-    auto x = std::lrint((v.x - xlo) * z);
-    auto y = std::lrint((v.y - ylo) * z);
-    ++im[y * gm.w + x];
+    auto x = (v.x - xlo) * z;
+    auto y = (v.y - ylo) * z;
+    auto ix = std::floor(x);
+    auto iy = std::floor(y);
+    auto dx = x - ix;
+    auto dy = y - iy;
+    constexpr uint64_t pw = 256;
+    im[iy * gm.w + ix] += pw * (1 - dx) * (1 - dy);
+    im[iy * gm.w + (ix + 1)] += pw * dx * (1 - dy);
+    im[(iy + 1) * gm.w + ix] += pw * (1 - dx) * dy;
+    im[(iy + 1) * gm.w + (ix + 1)] += pw * (1 - dx) * (1 - dy);
   }
   auto imcopy = im;
   std::sort(begin(imcopy), end(imcopy));
@@ -83,7 +90,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
 }
 
 int main() {
-  cv::Mat image = gumomira_image({.w = 2000});
+  cv::Mat image = gumomira_image({.w = 3000});
   cv::imwrite("output.png", image);
   return 0;
 }
