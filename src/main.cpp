@@ -1,18 +1,20 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
+using point_t = cv::Point2d;
+using num_t = double;
+
 struct gm_t {
   int w;
-  double z;
-  cv::Point2f p0 = {5, 0};
+  point_t p0 = {5, 0};
   int pre = 100;
   int rep = 100000000;
 
-  float a = 0.008;
-  float s = 0.05;
-  float mu = -0.496;
+  num_t a = 0.008;
+  num_t s = 0.05;
+  num_t mu = -0.496;
 
-  cv::Point2f progress(cv::Point2f const &p) const {
+  point_t progress(point_t const &p) const {
     auto x = p.x;
     auto y = p.y;
     auto xx = y + a * y * (1 - s * y * y) + mu * x +
@@ -21,8 +23,8 @@ struct gm_t {
   }
 };
 
-std::vector<cv::Point2f> gumomira_value(gm_t const &gm) {
-  std::vector<cv::Point2f> m;
+std::vector<point_t> gumomira_value(gm_t const &gm) {
+  std::vector<point_t> m;
   m.reserve(gm.rep);
   auto p = gm.p0;
   for (int i = 0; i < gm.pre; ++i) {
@@ -40,14 +42,10 @@ cv::Mat gumomira_image(gm_t const &gm) {
   auto pts = gumomira_value(gm);
   auto [i_xlo, i_xhi] = std::minmax_element(
       cbegin(pts), cend(pts),
-      [](cv::Point2f const &a, cv::Point2f const &b) -> bool {
-        return a.x < b.x;
-      });
+      [](point_t const &a, point_t const &b) -> bool { return a.x < b.x; });
   auto [i_ylo, i_yhi] = std::minmax_element(
       cbegin(pts), cend(pts),
-      [](cv::Point2f const &a, cv::Point2f const &b) -> bool {
-        return a.y < b.y;
-      });
+      [](point_t const &a, point_t const &b) -> bool { return a.y < b.y; });
   auto xlo = i_xlo->x;
   auto xhi = i_xhi->x;
   auto ylo = i_ylo->y;
@@ -76,7 +74,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
   for (size_t y = 0; y < gm.w; ++y) {
     for (size_t x = 0; x < gm.w; ++x) {
       auto v0 = im[y * gm.w + x] / max;
-      auto v = std::pow(v0, 0.1);
+      auto v = std::pow(v0, 0.2);
       image.at<std::uint8_t>(x, y) = cv::saturate_cast<std::uint8_t>(v * 255);
     }
   }
@@ -85,7 +83,7 @@ cv::Mat gumomira_image(gm_t const &gm) {
 }
 
 int main() {
-  cv::Mat image = gumomira_image({.w = 1000, .z = 100});
+  cv::Mat image = gumomira_image({.w = 2000});
   cv::imwrite("output.png", image);
   return 0;
 }
